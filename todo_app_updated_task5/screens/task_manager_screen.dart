@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:todo_app/services/weather_service.dart'; // Import the weather service
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
@@ -13,27 +14,28 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final TextEditingController _taskController = TextEditingController();
+  final WeatherService _weatherService = WeatherService();
   List<String> _tasks = [];
+  String _weatherInfo = '';
 
   @override
   void initState() {
     super.initState();
     _fetchTasks();
     _requestPermission();
-    _refreshTokenPeriodically(); // Token refresh
+    _fetchWeather();  // Fetch weather information
+    _refreshTokenPeriodically();
   }
 
-  Future<void> _refreshTokenPeriodically() async {
-    // Refresh token every hour (3600 seconds)
-    Future.delayed(Duration(hours: 1), () async {
-      User? user = _auth.currentUser;
-      if (user != null) {
-        String idToken = await user.getIdToken(true); // Force refresh
-        print('Refreshed ID Token: $idToken');
-      }
-      // Call recursively to continue refreshing every hour
-      _refreshTokenPeriodically();
-    });
+  Future<void> _fetchWeather() async {
+    try {
+      final weatherData = await _weatherService.fetchWeather('New York'); // Change city as needed
+      setState(() {
+        _weatherInfo = '${weatherData['weather'][0]['description']} in ${weatherData['name']}, Temperature: ${weatherData['main']['temp']}K';
+      });
+    } catch (e) {
+      print('Error fetching weather data: $e');
+    }
   }
 
   Future<void> _fetchTasks() async {
@@ -92,6 +94,10 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
             onPressed: _addTask,
             child: Text("Add Task"),
           ),
+          Text(
+            'Weather Info: $_weatherInfo',
+            style: TextStyle(fontSize: 16),
+          ),
           Expanded(
             child: ListView.builder(
               itemCount: _tasks.length,
@@ -107,3 +113,4 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
     );
   }
 }
+
